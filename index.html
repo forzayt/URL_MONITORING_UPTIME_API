@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Website Status Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background: linear-gradient(270deg, #f8f9fa, #e0e7ff, #f8f9fa);
+      background-size: 600% 600%;
+      animation: gradientBG 16s ease infinite;
+      min-height: 100vh;
+    }
+    @keyframes gradientBG {
+      0% {background-position: 0% 50%;}
+      50% {background-position: 100% 50%;}
+      100% {background-position: 0% 50%;}
+    }
+    .main-card {
+      margin-top: 32px;
+      margin-bottom: 32px;
+    }
+    .card {
+      border-radius: 16px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.06);
+      overflow: hidden;
+      position: relative;
+    }
+    .wave-bg {
+      position: absolute;
+      left: 0; right: 0; top: 0;
+      width: 100%;
+      height: 60px;
+      z-index: 0;
+      pointer-events: none;
+    }
+    .card-body {
+      position: relative;
+      z-index: 1;
+    }
+    .status-pulse {
+      display: inline-block;
+      margin-right: 8px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+      animation: pulse 1.5s infinite;
+      vertical-align: middle;
+    }
+    .status-pulse.offline {
+      box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+      background: #dc3545;
+      animation: pulseOffline 1.5s infinite;
+    }
+    .status-pulse.online {
+      background: #28a745;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+    }
+    @keyframes pulseOffline {
+      0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+    }
+    .spinner {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 200px;
+    }
+    .spinner-border {
+      width: 3rem;
+      height: 3rem;
+    }
+    .alert-log-table td, .alert-log-table th {
+      font-size: 0.95rem;
+      vertical-align: middle;
+    }
+    .uptime-bar {
+      height: 18px;
+      border-radius: 8px;
+      background: #e9ecef;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    .uptime-bar-inner {
+      height: 100%;
+      background: #28a745;
+      transition: width 0.7s cubic-bezier(0.23, 1, 0.32, 1);
+    }
+    .downtime-bar-inner {
+      height: 100%;
+      background: #dc3545;
+      display: inline-block;
+    }
+    .badge {
+      font-size: 0.85em;
+      margin-right: 0.25em;
+    }
+    .shimmer {
+      background: linear-gradient(90deg, #f8f9fa 25%, #e0e7ff 50%, #f8f9fa 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container-fluid main-card">
+    <div class="row g-4 flex-lg-nowrap">
+      <!-- Left column -->
+      <div class="col-12 col-lg-8 mb-4">
+        <div class="card mb-4 position-relative">
+          <div class="wave-bg">
+            <svg viewBox="0 0 500 60" preserveAspectRatio="none" style="width:100%;height:100%"><path d="M0,30 Q250,60 500,30 L500,0 L0,0 Z" fill="#e0e7ff"><animate attributeName="d" dur="4s" repeatCount="indefinite" values="M0,30 Q250,60 500,30 L500,0 L0,0 Z;M0,20 Q250,40 500,20 L500,0 L0,0 Z;M0,30 Q250,60 500,30 L500,0 L0,0 Z"/></path></svg>
+          </div>
+          <div class="card-body pb-2">
+            <h4 id="site-title" class="fw-bold mb-1">Site Name</h4>
+            <div class="text-muted mb-2" id="site-type">HTTP(S)</div>
+            <span class="badge bg-primary" id="site-url">---</span>
+            <span class="badge bg-secondary" id="site-created">---</span>
+            <span class="badge bg-info text-dark" id="site-id">---</span>
+          </div>
+        </div>
+        <div class="card mb-4 position-relative">
+          <div class="wave-bg">
+            <svg viewBox="0 0 500 60" preserveAspectRatio="none" style="width:100%;height:100%"><path d="M0,30 Q250,60 500,30 L500,0 L0,0 Z" fill="#cfe2ff"><animate attributeName="d" dur="5s" repeatCount="indefinite" values="M0,30 Q250,60 500,30 L500,0 L0,0 Z;M0,40 Q250,20 500,40 L500,0 L0,0 Z;M0,30 Q250,60 500,30 L500,0 L0,0 Z"/></path></svg>
+          </div>
+          <div class="card-body">
+            <h6 class="mb-3">Response Time <span class="badge bg-info" id="response-count">---</span></h6>
+            <canvas id="responseTimeChart" height="120"></canvas>
+            <div class="small text-muted mt-2" id="response-stats">High ---, Low ---, Avg ---</div>
+          </div>
+        </div>
+        <div class="card mb-4 position-relative">
+          <div class="wave-bg">
+            <svg viewBox="0 0 500 60" preserveAspectRatio="none" style="width:100%;height:100%"><path d="M0,30 Q250,60 500,30 L500,0 L0,0 Z" fill="#d1e7dd"><animate attributeName="d" dur="6s" repeatCount="indefinite" values="M0,30 Q250,60 500,30 L500,0 L0,0 Z;M0,25 Q250,45 500,25 L500,0 L0,0 Z;M0,30 Q250,60 500,30 L500,0 L0,0 Z"/></path></svg>
+          </div>
+          <div class="card-body">
+            <h6 class="mb-3">Uptime Ratios</h6>
+            <div class="d-flex flex-wrap gap-2 mb-2" id="uptime-ratios">
+              <!-- Uptime ratio badges injected here -->
+            </div>
+            <div class="uptime-bar mb-2">
+              <div class="uptime-bar-inner" id="uptime-bar-inner" style="width: 100%"></div>
+            </div>
+            <div class="small text-muted" id="uptime-bar-labels">Uptime | Downtime</div>
+          </div>
+        </div>
+        <div class="card position-relative">
+          <div class="wave-bg">
+            <svg viewBox="0 0 500 60" preserveAspectRatio="none" style="width:100%;height:100%"><path d="M0,30 Q250,60 500,30 L500,0 L0,0 Z" fill="#f8d7da"><animate attributeName="d" dur="7s" repeatCount="indefinite" values="M0,30 Q250,60 500,30 L500,0 L0,0 Z;M0,35 Q250,25 500,35 L500,0 L0,0 Z;M0,30 Q250,60 500,30 L500,0 L0,0 Z"/></path></svg>
+          </div>
+          <div class="card-body">
+            <h6 class="mb-3">Alert Log</h6>
+            <div class="table-responsive">
+              <table class="table table-sm alert-log-table">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Reason</th>
+                    <th>Duration</th>
+                  </tr>
+                </thead>
+                <tbody id="alert-log-body">
+                  <!-- Alert log rows injected here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Right column -->
+      <div class="col-12 col-lg-4">
+        <div class="card mb-4 position-relative">
+          <div class="wave-bg">
+            <svg viewBox="0 0 500 60" preserveAspectRatio="none" style="width:100%;height:100%"><path d="M0,30 Q250,60 500,30 L500,0 L0,0 Z" fill="#e2e3e5"><animate attributeName="d" dur="5s" repeatCount="indefinite" values="M0,30 Q250,60 500,30 L500,0 L0,0 Z;M0,20 Q250,40 500,20 L500,0 L0,0 Z;M0,30 Q250,60 500,30 L500,0 L0,0 Z"/></path></svg>
+          </div>
+          <div class="card-body">
+            <div class="d-flex align-items-center mb-3">
+              <span id="status-pulse" class="status-pulse online"></span>
+              <span id="current-status" class="fw-bold text-success">Up</span>
+            </div>
+            <div class="mb-2">
+              <div class="text-muted small">Uptime (30d)</div>
+              <div class="fw-bold" id="uptime-percent">---</div>
+            </div>
+            <div class="mb-2">
+              <div class="text-muted small">Downtime (30d)</div>
+              <div class="fw-bold" id="downtime-duration">---</div>
+            </div>
+            <div class="mb-2">
+              <div class="text-muted small">Latest Downtime</div>
+              <div class="fw-bold" id="latest-downtime">---</div>
+              <div class="small text-muted" id="latest-downtime-duration"></div>
+            </div>
+          </div>
+        </div>
+        <div id="loading-spinner" class="spinner" style="display:none;">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

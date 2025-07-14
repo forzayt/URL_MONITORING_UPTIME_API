@@ -17,13 +17,10 @@
       50% {background-position: 100% 50%;}
       100% {background-position: 0% 50%;}
     }
-    .main-card {
-      margin-top: 40px;
-      margin-bottom: 40px;
-    }
     .card {
       border-radius: 12px;
       box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+      margin-bottom: 20px;
     }
     .status-pulse {
       display: inline-block;
@@ -31,17 +28,16 @@
       width: 16px;
       height: 16px;
       border-radius: 50%;
-      box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
       animation: pulse 1.5s infinite;
-      vertical-align: middle;
-    }
-    .status-pulse.offline {
-      box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
-      background: #dc3545;
-      animation: pulseOffline 1.5s infinite;
     }
     .status-pulse.online {
       background: #28a745;
+      box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+    }
+    .status-pulse.offline {
+      background: #dc3545;
+      box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+      animation: pulseOffline 1.5s infinite;
     }
     @keyframes pulse {
       0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
@@ -53,180 +49,76 @@
       70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
       100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
     }
-    .uptime-bar {
-      height: 18px;
-      border-radius: 8px;
-      background: #e9ecef;
-      overflow: hidden;
-      margin-bottom: 10px;
-    }
-    .uptime-bar-inner {
-      height: 100%;
-      background: #28a745;
-      transition: width 0.7s cubic-bezier(0.23, 1, 0.32, 1);
-      animation: fillUptime 1.5s ease-out;
-    }
-    @keyframes fillUptime {
-      from { width: 0%; }
-      to { width: 100%; }
-    }
   </style>
 </head>
 <body>
-  <div class="container main-card">
-    <div class="row">
-      <div class="col-lg-8 mb-4">
-        <div class="card mb-4">
-          <div class="card-body">
-            <h4 id="site-title">Site Name</h4>
-            <div class="text-muted" id="site-type">HTTP(S)</div>
-          </div>
-        </div>
-        <div class="card mb-4">
-          <div class="card-body">
-            <h6 class="mb-3">Response Time</h6>
-            <canvas id="responseTimeChart" height="120"></canvas>
-            <div class="small text-muted mt-2" id="response-stats">High ---, Low ---, Avg ---</div>
-          </div>
-        </div>
-        <div class="card mb-4">
-          <div class="card-body">
-            <h6 class="mb-3">Uptime</h6>
-            <div class="uptime-bar mb-2">
-              <div class="uptime-bar-inner" id="uptime-bar-inner"></div>
-            </div>
-            <div class="small text-muted" id="uptime-bar-labels">Uptime | Downtime</div>
-          </div>
-        </div>
-      </div>
-      <div class="col-lg-4">
-        <div class="card mb-4">
-          <div class="card-body">
-            <div class="d-flex align-items-center mb-3">
-              <span id="status-pulse" class="status-pulse online"></span>
-              <span id="current-status" class="fw-bold text-success">Up</span>
-            </div>
-            <div class="mb-2">
-              <div class="text-muted small">Uptime</div>
-              <div class="fw-bold" id="uptime-percent">---</div>
-            </div>
-            <div class="mb-2">
-              <div class="text-muted small">Downtime</div>
-              <div class="fw-bold" id="downtime-duration">---</div>
-            </div>
-            <div class="mb-2">
-              <div class="text-muted small">Latest Downtime</div>
-              <div class="fw-bold" id="latest-downtime">---</div>
-              <div class="small text-muted" id="latest-downtime-duration"></div>
-            </div>
-            <div class="text-muted small" id="last-checked">Last checked: just now</div>
-          </div>
-        </div>
-      </div>
-    </div>
+  <div class="container py-4">
+    <h2 class="mb-4">All Website Status Monitors</h2>
+    <div id="monitors" class="row"></div>
   </div>
+
   <script>
     const API_KEY = "ur2855272-4026a39e7dcc2473426b4f0c";
-    let lastChecked = new Date();
 
-    async function fetchStatus() {
-      try {
-        const res = await fetch("https://api.uptimerobot.com/v2/getMonitors", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: `api_key=${API_KEY}&format=json&custom_uptime_ratios=1-7-30&logs=1&response_times=1&response_times_limit=30`
-        });
+    async function fetchAllMonitors() {
+      const res = await fetch("https://api.uptimerobot.com/v2/getMonitors", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `api_key=${API_KEY}&format=json&custom_uptime_ratios=30&logs=1&response_times=1&response_times_limit=10`
+      });
+      const data = await res.json();
+      if (!data.monitors) return;
 
-        const data = await res.json();
-        const monitor = data.monitors[0];
+      const container = document.getElementById("monitors");
+      container.innerHTML = "";
 
-        document.getElementById("site-title").textContent = monitor.friendly_name;
-        document.getElementById("site-type").textContent = monitor.type === 1 ? "HTTP(S)" : "Other";
-
+      data.monitors.forEach((monitor, idx) => {
         const isOnline = monitor.status === 2;
-        const pulse = document.getElementById("status-pulse");
-        const status = document.getElementById("current-status");
-        pulse.className = isOnline ? "status-pulse online" : "status-pulse offline";
-        status.textContent = isOnline ? "Up" : "Down";
-        status.className = `fw-bold ${isOnline ? "text-success" : "text-danger"}`;
+        const responseTimes = monitor.response_times.map(t => Math.max(0, t.value + (Math.random() * 20 - 10)));
+        const labels = monitor.response_times.map(t => new Date(t.datetime * 1000).toLocaleTimeString());
 
-        const ratios = monitor.custom_uptime_ratio.split("-").map(parseFloat);
-        const uptimePercent = ratios[2] || 100;
-        document.getElementById("uptime-percent").textContent = uptimePercent.toFixed(2) + "%";
+        const card = document.createElement("div");
+        card.className = "col-md-6 col-lg-4";
+        card.innerHTML = `
+          <div class="card p-3">
+            <h5>
+              <span class="status-pulse ${isOnline ? 'online' : 'offline'}"></span>
+              ${monitor.friendly_name}
+            </h5>
+            <div class="text-muted mb-2">Type: ${monitor.type === 1 ? "HTTP(S)" : "Other"}</div>
+            <div>Uptime: ${monitor.custom_uptime_ratio}%</div>
+            <canvas id="chart-${idx}" height="120"></canvas>
+          </div>
+        `;
 
-        const bar = document.getElementById("uptime-bar-inner");
-        bar.style.width = uptimePercent + "%";
-        bar.style.background = uptimePercent > 97 ? "#28a745" : "#ffc107";
-        bar.style.animation = "none"; void bar.offsetWidth; bar.style.animation = "fillUptime 1.5s ease-out";
+        container.appendChild(card);
 
-        let logs = monitor.logs.filter(log => log.type === 1 || log.type === 2);
-        let downtimeTotal = 0;
-        let lastDown = logs.find(l => l.type === 1);
-        let lastUp = logs.find(l => l.type === 2 && lastDown && l.datetime > lastDown.datetime);
-        if (lastDown) {
-          document.getElementById("latest-downtime").textContent = new Date(lastDown.datetime * 1000).toLocaleString();
-          if (lastUp) {
-            const dur = lastUp.datetime - lastDown.datetime;
-            document.getElementById("latest-downtime-duration").textContent = `Lasted for ${Math.floor(dur / 60)} minutes`;
-          }
-        }
-        for (let i = 0; i < logs.length; i++) {
-          if (logs[i].type === 1 && logs[i + 1] && logs[i + 1].type === 2) {
-            downtimeTotal += logs[i + 1].datetime - logs[i].datetime;
-          }
-        }
-        document.getElementById("downtime-duration").textContent = `${Math.floor(downtimeTotal / 60)} minutes`;
-
-        const times = monitor.response_times || [];
-        const labels = times.map(t => new Date(t.datetime * 1000).toLocaleTimeString());
-        const values = times.map(t => Math.max(0, t.value + (Math.random() * 20 - 10))); // add jitter
-        let high = Math.max(...values), low = Math.min(...values), avg = values.reduce((a, b) => a + b, 0) / values.length;
-        document.getElementById("response-stats").textContent = `High ${high.toFixed(0)}ms, Low ${low.toFixed(0)}ms, Avg ${avg.toFixed(0)}ms`;
-
-        const ctx = document.getElementById("responseTimeChart").getContext("2d");
+        const ctx = card.querySelector(`#chart-${idx}`).getContext("2d");
         new Chart(ctx, {
           type: "line",
           data: {
-            labels,
+            labels: labels,
             datasets: [{
               label: "Response Time (ms)",
-              data: values,
+              data: responseTimes,
               backgroundColor: "rgba(54, 162, 235, 0.2)",
               borderColor: "rgb(54, 162, 235)",
               borderWidth: 2,
-              tension: 0.3,
-              fill: true,
-              pointBackgroundColor: "rgb(54, 162, 235)"
+              tension: 0.4,
+              fill: true
             }]
           },
           options: {
             responsive: true,
-            animation: { duration: 1000, easing: 'easeInOutQuart' },
-            scales: {
-              y: {
-                min: 0,
-                ticks: {
-                  callback: val => val + "ms"
-                }
-              }
-            }
+            plugins: { legend: { display: false } },
+            scales: { y: { ticks: { callback: val => val + "ms" }, beginAtZero: true } }
           }
         });
-
-        lastChecked = new Date();
-
-      } catch (e) {
-        console.error("Fetch error", e);
-      }
+      });
     }
 
-    fetchStatus();
-    setInterval(fetchStatus, 60000);
-    setInterval(() => {
-      const diff = Math.floor((new Date() - lastChecked) / 1000);
-      const text = diff < 60 ? `${diff}s ago` : `${Math.floor(diff / 60)}m ago`;
-      document.getElementById("last-checked").textContent = `Last checked: ${text}`;
-    }, 1000);
+    fetchAllMonitors();
+    setInterval(fetchAllMonitors, 60000);
   </script>
 </body>
 </html>
